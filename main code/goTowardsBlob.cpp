@@ -7,7 +7,7 @@
 #include <iostream>
 #include <ctype.h>
 
-
+//as;gl
 using namespace cv;
 using namespace std;
 Mat hsvImage, hsvOutputImage;
