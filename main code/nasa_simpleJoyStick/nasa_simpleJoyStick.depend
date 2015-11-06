@@ -1,0 +1,27 @@
+# depslib dependency file v1.0
+1446494446 source:c:\users\scott\desktop\nasa team code\joystick.c
+	<windows.h>
+	<stdio.h>
+	<stdlib.h>
+	"joystick.h"
+
+1446494472 c:\users\scott\desktop\nasa team code\joystick.h
+
+1446494555 source:c:\users\scott\desktop\nasa team code\nnlib.c
+	"nnlib.h"
+
+1446494571 c:\users\scott\desktop\nasa team code\nnlib.h
+	<stdio.h>
+	<stdlib.h>
+	<math.h>
+	<string.h>
+	<strings.h>
+	<time.h>
+	<windows.h>
+	<unistd.h>
+	<termios.h>
+	<sys/ioctl.h>
+	<fcntl.h>
+	<ncurses.h>
+	"kbhit.h"
+
