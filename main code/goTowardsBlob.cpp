@@ -7,7 +7,8 @@
 #include <iostream>
 #include <ctype.h>
 
-//as;gl
+#define MAX_SPEED (200)
+#define MIN_AREA (20*20)
 using namespace cv;
 using namespace std;
 Mat hsvImage, hsvOutputImage;
@@ -86,7 +87,7 @@ int main( int argc, char** argv )
                     areaIndex=i;
                 }
             }
-            if (maxArea>20*20){     //make sure largest blob is big enough to be significant and not noise
+            if (maxArea>MIN_AREA){     //make sure largest blob is big enough to be significant and not noise
                 xPos=moment[areaIndex].m10/area[areaIndex];
                 yPos=moment[areaIndex].m01/area[areaIndex];
             }
@@ -97,8 +98,8 @@ int main( int argc, char** argv )
             float xDiff=xPos-halfWidth;
             //cout << "Difference in X: " << xDiff << "\n";
             if (numObjects>0){
-                lspeed=(int)(200+(xDiff/halfWidth)*100);
-                rspeed=(int)(200-(xDiff/halfWidth)*100);
+                lspeed=(int)(200+(xDiff/halfWidth)*MAX_SPEED);
+                rspeed=(int)(200-(xDiff/halfWidth)*MAX_SPEED);
             }
             else{
                     lspeed=rspeed=0;
