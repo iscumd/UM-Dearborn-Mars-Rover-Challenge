@@ -90,14 +90,13 @@ int main( int argc, char** argv )
             if (maxArea>MIN_AREA){     //make sure largest blob is big enough to be significant and not noise
                 xPos=moment[areaIndex].m10/area[areaIndex];
                 yPos=moment[areaIndex].m01/area[areaIndex];
-            }
-            cv::circle(hsvOutputImage,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
-            //Getting speeds to sent to Roboteq
-            int width=frame.cols;
-            float halfWidth=width/2;
-            float xDiff=xPos-halfWidth;
+                cv::circle(hsvOutputImage,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
+                //Getting speeds to sent to Roboteq
+                int width=frame.cols;
+                float halfWidth=width/2;
+                float xDiff=xPos-halfWidth;
+
             //cout << "Difference in X: " << xDiff << "\n";
-            if (numObjects>0){
                 lspeed=(int)(200+(xDiff/halfWidth)*MAX_SPEED);
                 rspeed=(int)(200-(xDiff/halfWidth)*MAX_SPEED);
             }
@@ -113,6 +112,3 @@ int main( int argc, char** argv )
     if( waitKey(1) == 27 ) break; // stop capturing by pressing ESC
     }
 }
-
-
-
