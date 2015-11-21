@@ -6,19 +6,20 @@
 
 #include <iostream>
 #include <ctype.h>
-
 #define MAX_SPEED (200)
-#define MIN_AREA (20*20)
+#define MIN_AREA (10*10)
+#define MAX_AREA (90*90)
+
 using namespace cv;
 using namespace std;
-Mat hsvImage, hsvOutputImage;
+Mat bgrImage, hsvImage, hsvOutputImage;
 Mat dstHue, dstSat, dstVal;
 vector<Mat> hsv_planes;
-int h_low=0;         //for orange, =0
+int h_low=0;         //hue is the color. For orange, =0
 int h_high=20;       //for orange, =20
-int s_low=50;
-int s_high=110;
-int v_low=0;
+int s_low=160;      //saturation is the amount of a color
+int s_high=256;
+int v_low=130;      //value is the shininess of the color
 int v_high=255;
 
 /*roboteq.h Definitions*/
@@ -45,7 +46,7 @@ int main( int argc, char** argv )
     VideoCapture cap;
     if( argc == 1)
     {
-        cap.open(argc == 2); //initialize camera: argc==2: laptop webcam; argc==1: external webcam
+        cap.open(argc == 3); //initialize camera: argc==2: laptop webcam; argc==1 or argc==3: external webcam
     }
     if( !cap.isOpened() )
     {
@@ -54,61 +55,84 @@ int main( int argc, char** argv )
     }
     trackbarInit();
 
-    while(1) {
-    static int lspeed, rspeed;
-    Mat frame;
-    cap>>frame;
-    frame.copyTo(hsvImage);
-    split(hsvImage, hsv_planes);
-    inRange(hsv_planes[0], Scalar(h_low), Scalar(h_high), dstHue);    //Sets all pixels with Hue value in between the threshold values to 1, everything else to 0
-    inRange(hsv_planes[1], Scalar(s_low), Scalar(s_high), dstSat);    //Does the same, but for Saturation values
-    inRange(hsv_planes[2], Scalar(v_low), Scalar(v_high), dstVal);
-    hsvOutputImage=dstHue&dstSat&dstVal;
+    int fin=1;
+    while(fin==1)
+    {
+        static int lspeed, rspeed;
+        Mat frame;
+        cap>>frame;
+        frame.copyTo(bgrImage);
+        cvtColor(bgrImage, hsvImage, COLOR_BGR2HSV);
+        split(hsvImage, hsv_planes);
+        inRange(hsv_planes[0], Scalar(h_low), Scalar(h_high), dstHue);    //Sets all pixels with Hue value in between the threshold values to 1, everything else to 0
+        inRange(hsv_planes[1], Scalar(s_low), Scalar(s_high), dstSat);    //Does the same, but for Saturation values
+        inRange(hsv_planes[2], Scalar(v_low), Scalar(v_high), dstVal);
+        hsvOutputImage=dstHue&dstSat&dstVal;
 
-    Mat temp;
-    hsvOutputImage.copyTo(temp);
-    vector< vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	int xPos, yPos;
-	findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE ); //find outlines of blobs
-	if (hierarchy.size() > 0) {
-		int numObjects = hierarchy.size();
-		double area[numObjects];
-		Moments moment[numObjects];
-            for (int index = 0; index >= 0; index = hierarchy[index][0]) {
-                    moment[index] = moments((cv::Mat)contours[index]); //get pixel intensity moments of blobs
-                    area[index] = moment[index].m00;
+        Mat temp;
+        hsvOutputImage.copyTo(temp);
+        vector< vector<Point> > contours;
+        vector<Vec4i> hierarchy;
+        int xPos, yPos;
+        findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE ); //find outlines of blobs
+        if (hierarchy.size() > 0)   //Checks to see if at least one blob is detected
+        {
+            int numObjects = hierarchy.size();
+            //cout << "Number of objects found is: "<< numObjects << "\n";
+            double area[numObjects];
+            Moments moment[numObjects];
+            for (int index = 0; index >= 0; index = hierarchy[index][0])
+            {
+                moment[index] = moments((cv::Mat)contours[index]); //get pixel intensity moments of blobs
+                area[index] = moment[index].m00;
             }
             int maxArea=area[0];
             int areaIndex=0;
-            for (int i=1; i<numObjects; i++){   //finding biggest blob
-                if (area[i]>maxArea){
+            for (int i=1; i<numObjects; i++)    //look through all the blobs found and get the area and index of biggest one
+            {
+                if (area[i]>maxArea)
+                {
                     maxArea=area[i];
                     areaIndex=i;
                 }
             }
-            if (maxArea>MIN_AREA){     //make sure largest blob is big enough to be significant and not noise
+            cout << "Max Area is: "<< maxArea << "\n";
+            if (maxArea>MIN_AREA)      //make sure largest blob is big enough to be significant and not noise
+            {
                 xPos=moment[areaIndex].m10/area[areaIndex];
                 yPos=moment[areaIndex].m01/area[areaIndex];
-                cv::circle(hsvOutputImage,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
-                //Getting speeds to sent to Roboteq
-                int width=frame.cols;
-                float halfWidth=width/2;
-                float xDiff=xPos-halfWidth;
-
+            }
+            //cv::circle(frame,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
+            cv::circle(hsvOutputImage,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
+            //Getting speeds to sent to Roboteq
+            int width=frame.cols;
+            float halfWidth=width/2;
+            float xDiff=xPos-halfWidth;
             //cout << "Difference in X: " << xDiff << "\n";
-                lspeed=(int)(200+(xDiff/halfWidth)*MAX_SPEED);
-                rspeed=(int)(200-(xDiff/halfWidth)*MAX_SPEED);
+            if (maxArea<MAX_AREA) //Check to see if the robot is too close to home base
+            {                     //If it isn't, then move as usual
+                lspeed=(int)(MAX_SPEED-(xDiff/halfWidth)*MAX_SPEED);
+                rspeed=(int)(MAX_SPEED+(xDiff/halfWidth)*MAX_SPEED);
             }
-            else{
-                    lspeed=rspeed=0;
+            else    //If it is at the home base
+            {       //Stop the robot and end the program
+                lspeed=rspeed=0;
+                fin=0;
+                cout<<"Robot has reached home base"<<"\n";
             }
-            sendspeed(lspeed, rspeed);
+        }
+        else
+        {
+            lspeed=rspeed=0; //Don't move if no blobs are found
+        }
+        //cout<<"X Position: "<<xPos<<" Y Position: "<<yPos<<"\n";
+        //cout<<"Left Speed: "<<lspeed<<" Right Speed: "<<rspeed<<"\n";
+        sendspeed(lspeed, rspeed);
 
-	}
 
-    imshow("HSV_thresholded image", hsvOutputImage);
-    //imshow("Image", frame);
-    if( waitKey(1) == 27 ) break; // stop capturing by pressing ESC
+
+        imshow("HSV_thresholded image", hsvOutputImage);
+        //imshow("Image", frame);
+        if( waitKey(1) == 27 ) break; // stop capturing by pressing ESC
     }
 }
