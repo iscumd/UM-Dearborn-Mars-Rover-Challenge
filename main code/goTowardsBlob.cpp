@@ -12,9 +12,7 @@
 
 using namespace cv;
 using namespace std;
-Mat bgrImage, hsvImage, hsvOutputImage;
-Mat dstHue, dstSat, dstVal;
-vector<Mat> hsv_planes;
+
 int h_low=0;         //hue is the color. For orange, =0
 int h_high=20;       //for orange, =20
 int s_low=160;      //saturation is the amount of a color
@@ -29,6 +27,12 @@ int rightChannelNum = 1;//Can be 1 or 2 check physical connection
 /*joystick.h Definitions*/
 struct JoystickData joy0;
 
+struct blob {
+int xPos;
+int yPos;
+int maxArea;
+};
+
 void trackbarInit()
 {
     namedWindow( "HSV Detection", 1 );
@@ -40,13 +44,63 @@ void trackbarInit()
     createTrackbar("Value Low", "HSV Detection", &v_low, 256);
 }
 
+blob blobCenter(Mat temp) {
+    vector< vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    blob blobPos;
+    findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE ); //find outlines of blobs
+    if (hierarchy.size() > 0)   //Checks to see if at least one blob is detected
+    {
+        int numObjects = hierarchy.size();
+        //cout << "Number of objects found is: "<< numObjects << "\n";
+        double area[numObjects];
+        Moments moment[numObjects];
+        for (int index = 0; index >= 0; index = hierarchy[index][0])
+        {
+            moment[index] = moments((cv::Mat)contours[index]); //get pixel intensity moments of blobs
+            area[index] = moment[index].m00;
+        }
+        blobPos.maxArea=area[0];
+        int areaIndex=0;
+        for (int i=1; i<numObjects; i++)    //look through all the blobs found and get the area and index of biggest one
+        {
+            if (area[i]>blobPos.maxArea)
+            {
+                blobPos.maxArea=area[i];
+                areaIndex=i;
+            }
+        }
+        cout << "Max Area is: "<< blobPos.maxArea << "\n";
+        if (blobPos.maxArea>MIN_AREA)      //make sure largest blob is big enough to be significant and not noise
+        {
+            blobPos.xPos=moment[areaIndex].m10/area[areaIndex];
+            blobPos.yPos=moment[areaIndex].m01/area[areaIndex];
+        }
+    }
+    else
+    {
+        blobPos.xPos=-8;
+        blobPos.yPos=-8;
+        cout<<"No blobs detected\n";
+    }
+    return(blobPos);
+}
+
 int main( int argc, char** argv )
 {
     initRoboteq();//Refer to roboteq.c
     VideoCapture cap;
+    blob blobPosition;
+    Mat frame, temp;
+    Mat bgrImage, hsvImage, hsvOutputImage;
+    Mat dstHue, dstSat, dstVal;
+    vector<Mat> hsv_planes;
+    static int lspeed, rspeed;
+    int x,y;
+    int mArea;
     if( argc == 1)
     {
-        cap.open(argc == 3); //initialize camera: argc==2: laptop webcam; argc==1 or argc==3: external webcam
+        cap.open(argc == 2); //initialize camera: argc==2: laptop webcam; argc==1 or argc==3: external webcam
     }
     if( !cap.isOpened() )
     {
@@ -58,8 +112,6 @@ int main( int argc, char** argv )
     int fin=1;
     while(fin==1)
     {
-        static int lspeed, rspeed;
-        Mat frame;
         cap>>frame;
         frame.copyTo(bgrImage);
         cvtColor(bgrImage, hsvImage, COLOR_BGR2HSV);
@@ -68,48 +120,22 @@ int main( int argc, char** argv )
         inRange(hsv_planes[1], Scalar(s_low), Scalar(s_high), dstSat);    //Does the same, but for Saturation values
         inRange(hsv_planes[2], Scalar(v_low), Scalar(v_high), dstVal);
         hsvOutputImage=dstHue&dstSat&dstVal;
-
-        Mat temp;
         hsvOutputImage.copyTo(temp);
-        vector< vector<Point> > contours;
-        vector<Vec4i> hierarchy;
-        int xPos, yPos;
-        findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE ); //find outlines of blobs
-        if (hierarchy.size() > 0)   //Checks to see if at least one blob is detected
+
+        blobPosition=blobCenter(temp);
+        if(blobPosition.xPos>=0 && blobPosition.yPos>=0)
         {
-            int numObjects = hierarchy.size();
-            //cout << "Number of objects found is: "<< numObjects << "\n";
-            double area[numObjects];
-            Moments moment[numObjects];
-            for (int index = 0; index >= 0; index = hierarchy[index][0])
-            {
-                moment[index] = moments((cv::Mat)contours[index]); //get pixel intensity moments of blobs
-                area[index] = moment[index].m00;
-            }
-            int maxArea=area[0];
-            int areaIndex=0;
-            for (int i=1; i<numObjects; i++)    //look through all the blobs found and get the area and index of biggest one
-            {
-                if (area[i]>maxArea)
-                {
-                    maxArea=area[i];
-                    areaIndex=i;
-                }
-            }
-            cout << "Max Area is: "<< maxArea << "\n";
-            if (maxArea>MIN_AREA)      //make sure largest blob is big enough to be significant and not noise
-            {
-                xPos=moment[areaIndex].m10/area[areaIndex];
-                yPos=moment[areaIndex].m01/area[areaIndex];
-            }
+            x=blobPosition.xPos;
+            y=blobPosition.yPos;
+            mArea=blobPosition.maxArea;
             //cv::circle(frame,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
-            cv::circle(hsvOutputImage,cv::Point(xPos,yPos),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
+            cv::circle(hsvOutputImage,cv::Point(x,y),10,cv::Scalar(0,0,255));  //draw circle over center of largest blob
             //Getting speeds to sent to Roboteq
             int width=frame.cols;
             float halfWidth=width/2;
-            float xDiff=xPos-halfWidth;
+            float xDiff=x-halfWidth;
             //cout << "Difference in X: " << xDiff << "\n";
-            if (maxArea<MAX_AREA) //Check to see if the robot is too close to home base
+            if (mArea<MAX_AREA) //Check to see if the robot is too close to home base
             {                     //If it isn't, then move as usual
                 lspeed=(int)(MAX_SPEED-(xDiff/halfWidth)*MAX_SPEED);
                 rspeed=(int)(MAX_SPEED+(xDiff/halfWidth)*MAX_SPEED);
@@ -123,16 +149,12 @@ int main( int argc, char** argv )
         }
         else
         {
-            lspeed=rspeed=0; //Don't move if no blobs are found
+            lspeed=rspeed=0;
         }
         //cout<<"X Position: "<<xPos<<" Y Position: "<<yPos<<"\n";
         //cout<<"Left Speed: "<<lspeed<<" Right Speed: "<<rspeed<<"\n";
-        sendspeed(lspeed, rspeed);
-
-
-
+        //sendspeed(lspeed, rspeed);
         imshow("HSV_thresholded image", hsvOutputImage);
-        //imshow("Image", frame);
         if( waitKey(1) == 27 ) break; // stop capturing by pressing ESC
-    }
+        }
 }
