@@ -44,6 +44,18 @@ void trackbarInit()
     createTrackbar("Value Low", "HSV Detection", &v_low, 256);
 }
 
+void morphOps(Mat &thresh)
+{
+    Mat erodeElement=getStructuringElement(MORPH_RECT, Size(3,3));
+    Mat dilateElement=getStructuringElement(MORPH_RECT, Size(6,6));
+
+    erode(thresh,thresh,erodeElement);
+    erode(thresh,thresh,erodeElement);
+
+    dilate(thresh,thresh,dilateElement);
+    dilate(thresh,thresh,dilateElement);
+}
+
 blob blobCenter(Mat temp) {
     vector< vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -93,20 +105,22 @@ int main( int argc, char** argv )
     blob blobPosition;
     Mat frame, temp;
     Mat bgrImage, hsvImage, hsvOutputImage;
-    Mat dstHue, dstSat, dstVal;
-    vector<Mat> hsv_planes;
+//    Mat dstHue, dstSat, dstVal;
+//    vector<Mat> hsv_planes;
     static int lspeed, rspeed;
     int x,y;
     int mArea;
-    if( argc == 1)
-    {
-        cap.open(argc == 2); //initialize camera: argc==2: laptop webcam; argc==1 or argc==3: external webcam
-    }
-    if( !cap.isOpened() )
-    {
-        cout << "Could not initialize capturing...\n";
-        return 0;
-    }
+    bool useMorphOps=true;
+//    if( argc == 1)
+//    {
+//        cap.open(argc == 2); //initialize camera: argc==2: laptop webcam; argc==1 or argc==3: external webcam
+//    }
+//    if( !cap.isOpened() )
+//    {
+//        cout << "Could not initialize capturing...\n";
+//        return 0;
+//    }
+    cap.open(0); //0:default web cam location
     trackbarInit();
 
     int fin=1;
@@ -116,12 +130,15 @@ int main( int argc, char** argv )
         frame.copyTo(bgrImage);
         cvtColor(bgrImage, hsvImage, COLOR_BGR2HSV);
         split(hsvImage, hsv_planes);
-        inRange(hsv_planes[0], Scalar(h_low), Scalar(h_high), dstHue);    //Sets all pixels with Hue value in between the threshold values to 1, everything else to 0
-        inRange(hsv_planes[1], Scalar(s_low), Scalar(s_high), dstSat);    //Does the same, but for Saturation values
-        inRange(hsv_planes[2], Scalar(v_low), Scalar(v_high), dstVal);
-        hsvOutputImage=dstHue&dstSat&dstVal;
-        hsvOutputImage.copyTo(temp);
+//        inRange(hsv_planes[0], Scalar(h_low), Scalar(h_high), dstHue);    //Sets all pixels with Hue value in between the threshold values to 1, everything else to 0
+//        inRange(hsv_planes[1], Scalar(s_low), Scalar(s_high), dstSat);    //Does the same, but for Saturation values
+//        inRange(hsv_planes[2], Scalar(v_low), Scalar(v_high), dstVal);
+//        hsvOutputImage=dstHue&dstSat&dstVal;
+        inRange(hsvImage,Scalar(h_low,s_low,v_low), Scalar(h_high,s_high,v_high), hsvOutputImage);
 
+        if(useMorphOps) morphOps(hsvOutputImage);
+
+        hsvOutputImage.copyTo(temp);
         blobPosition=blobCenter(temp);
         if(blobPosition.xPos>=0 && blobPosition.yPos>=0)
         {
