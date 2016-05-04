@@ -13,8 +13,8 @@
 using namespace cv;
 using namespace std;
 
-int h_low=0;         //hue is the color. For orange, =0
-int h_high=20;       //for orange, =20
+int h_low=5;         //hue is the color. For orange, =0
+int h_high=16;       //for orange, =20
 int s_low=160;      //saturation is the amount of a color
 int s_high=256;
 int v_low=130;      //value is the shininess of the color
@@ -50,7 +50,7 @@ static int rspeed;
 bool lookBlob1;
 bool lookBlob2;
 };*/
-void trackbarInit()
+void trackbarInit()     //initialize trackbars
 {
     namedWindow( "Blob 1 Detection", 1 );
     createTrackbar("Hue High",   "Blob 1 Detection", &h_high, 256);
@@ -69,7 +69,7 @@ void trackbarInit()
     createTrackbar("Value Low",  "Blob 2 Detection", &v_low2,  256);
 }
 
-void morphOps(Mat &thresh)
+void morphOps(Mat &thresh)      //function to apply morphological operations to image to remove noise and make existing target easier to detect
 {
     Mat erodeElement=getStructuringElement(MORPH_RECT, Size(3,3));
     Mat dilateElement=getStructuringElement(MORPH_RECT, Size(6,6));
@@ -81,7 +81,7 @@ void morphOps(Mat &thresh)
     dilate(thresh,thresh,dilateElement);
 }
 
-void bw2color (Mat colorImage, Mat bwImage) {
+void bw2color (Mat colorImage, Mat bwImage) {       //attempt to make areas black on colored image
     int cols = bwImage.cols;
     int rows =bwImage.rows;
     Mat outImage;
@@ -98,6 +98,7 @@ void bw2color (Mat colorImage, Mat bwImage) {
     }
     imshow("Output Image", outImage);
 }
+
 blob blobCenter(Mat temp, int width) {
     vector< vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -231,7 +232,7 @@ int main( int argc, char** argv )
     bool findBlob1 = true;
     bool findBlob2 = true;
 
-    cap.open(0); //0:default web cam   1:external web cam
+    cap.open(1); //0:default web cam   1:external web cam
     trackbarInit();
 
     int fin=1;
@@ -241,9 +242,10 @@ int main( int argc, char** argv )
         frame.copyTo(bgrImage);
         width=frame.cols;
         cvtColor(bgrImage, hsvImage, COLOR_BGR2HSV);
+        imshow("Before Thresh", bgrImage);
         inRange(hsvImage,Scalar(h_low,s_low,v_low), Scalar(h_high,s_high,v_high), hsvOutputImage);
         inRange(hsvImage,Scalar(h_low2,s_low2,v_low2), Scalar(h_high2,s_high2,v_high2), hsvOutputImage2);
-        //imshow("Before Morph", hsvOutputImage2);
+        imshow("Before Morph", hsvOutputImage);
         if(useMorphOps) {
                 morphOps(hsvOutputImage);
                 morphOps(hsvOutputImage2);

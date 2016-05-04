@@ -49,7 +49,7 @@ int main(){
                     rSpeed=-MAX_SPEED/2;
                 } else {
                     speed = -joy0.axis[1]; //Up is negative on joystick negate so positive when going forward
-                    turn = -joy0.axis[0];
+                    turn = joy0.axis[0];
 
 /********************Add Boost Here**********************/
 

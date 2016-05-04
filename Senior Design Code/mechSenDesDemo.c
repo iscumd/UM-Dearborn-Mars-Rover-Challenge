@@ -21,7 +21,6 @@
 #define START_BTN BIT(7)// 0000 0000 1000 0000
 #define LTS_BTN BIT(8)  // 0000 0001 0000 0000
 #define RTS_BTN BIT(9)  // 0000 0010 0000 0000
-#define MAX_SPEED (80)
 
 /*roboteq.h Definitions*/
 //int roboteqPort = 6;
@@ -43,16 +42,11 @@ void arduinoWrite(char c)
     SerialPutc(bagArduinoHandle, c);
     printf("Sent %c\n", c);
 }
-//extern HANDLE roboteqHandle;
 int main(){
     initArduino();
-    //initRoboteq();//Refer to roboteq.c
     while (1) {
-            //arduinoWrite('c');
-        //static double turnBoost = 0.65;//Multiplier for turn. Adjust to smooth jerky motions. Usually < 1.0
-        //static int lSpeed, rSpeed;//Wheel Speed Variables
         if (joystick() != 0) {
-            if(joy0.hat==0){
+            if(joy0.hat==0){        //send a character to be read by Arduino program
                 arduinoWrite('1');
                 //arduinoWrite(armArduinoHandle, '0');
             } else if(joy0.hat==90) {
@@ -81,37 +75,7 @@ int main(){
                 //arduinoWrite(armArduinoHandle, '0');
             }
         }
-            /*double speed, turn;
-            if (joy0.buttons & LB_BTN) {
-                speed = -joy0.axis[1]; //Up is negative on joystick negate so positive when going forward
-                turn = joy0.axis[0];
-/********************Add Boost Here**********************/
-
-               /* lSpeed = (int)((speed + turnBoost*turn)*MAX_SPEED);
-                rSpeed = (int)((speed - turnBoost*turn)*MAX_SPEED);
-                }else{
-                     rSpeed=lSpeed=0;
-                }
-            sendspeed(lSpeed,rSpeed);//Refer to roboteq.c for how commands are sent
-        } else{
-            printf("No Joystick Found!\n");
-            sendspeed(0,0);
-        }
-        int k = 0;
-        for (k = 0; k < 4; k++)
-            printf("%8.3f ", joy0.axis[k]);
-        printf(" %03x ", joy0.buttons);
-        printf("%6d ", joy0.hat);
-        for (; k < 6; k++)
-            printf("%8.3f ", joy0.axis[k]);
-        printf("\r");
-        if ((joy0.buttons & 3) == 3) {
-            printf("\n\nBye\n");
-            system("Pause");
-            break;
-        }
-        Sleep(100);//Sleep so you don't flood roboteq with commands.
-   */ }
+    }
     return 0;
 }
 
